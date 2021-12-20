@@ -1,10 +1,21 @@
 from flask import Flask, render_template, jsonify, request
 from flask_selfdoc import Autodoc
+from flask_httpauth import HTTPBasicAuth
 from helpers import get_historical_data, optimized_for_return, sharpe_ratio, optimized_for_volatility, min_volatility, optimized_for_return
+from werkzeug.security import check_password_hash
+from config import users
 
 app = Flask(__name__)
 app.config["DEBUG"] = False  # TODO: Set to False during deployment
+prefix = "/api/v1"
 auto = Autodoc(app)
+auth = HTTPBasicAuth()
+
+@auth.verify_password
+def verify_password(username, password):
+    if username in users and \
+            check_password_hash(users.get(username), password):
+        return username
 
 
 @app.route('/')
@@ -14,7 +25,8 @@ def index():
 
 
 @auto.doc()
-@app.route('/max_sharpe', methods=['POST'])
+@app.route(f'{prefix}/max_sharpe', methods=['POST'])
+@auth.login_required
 # POST for sharpe ratio
 def max_sharpe():
     if(request.method == 'POST'):
@@ -31,7 +43,8 @@ def max_sharpe():
 
 
 @auto.doc()
-@app.route('/target_return', methods=['POST'])
+@app.route(f'{prefix}/target_return', methods=['POST'])
+@auth.login_required
 # POST for optimizing for target return %
 def target_return():
     if(request.method == 'POST'):
@@ -50,7 +63,8 @@ def target_return():
 
 
 @auto.doc()
-@app.route('/efficient_risk', methods=['POST'])
+@app.route(f'{prefix}/efficient_risk', methods=['POST'])
+@auth.login_required
 # POST for optimizing for volatility
 def efficient_risk():
     if(request.method == 'POST'):
@@ -70,7 +84,7 @@ def efficient_risk():
         return "Not post request", 400
 
 
-@app.route('/keep_alive', methods=['GET'])
+@app.route(f'{prefix}/keep_alive', methods=['GET'])
 # Keep alive for heroku 30 min sleep
 def keep_alive():
     return jsonify({
@@ -78,7 +92,7 @@ def keep_alive():
     })
 
 
-@app.route('/documentation')
+@app.route(f'{prefix}/documentation')
 def documentation():
     return auto.html()
 
