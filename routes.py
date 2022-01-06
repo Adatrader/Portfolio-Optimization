@@ -6,7 +6,7 @@ from werkzeug.security import check_password_hash
 from config import users
 
 app = Flask(__name__)
-app.config["DEBUG"] = False  # TODO: Set to False during deployment
+app.config["DEBUG"] = True  # TODO: Set to False during deployment
 prefix = "/api/v1"
 auto = Autodoc(app)
 auth = HTTPBasicAuth()
@@ -98,5 +98,5 @@ def documentation():
 
 
 # TODO: Comment out for heroku deployment
-# if __name__ == "__main__":
-#     app.run()
+if __name__ == "__main__":
+    app.run()

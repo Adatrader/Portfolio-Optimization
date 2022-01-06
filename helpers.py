@@ -1,24 +1,54 @@
-import yfinance as yf
 from pypfopt import EfficientFrontier
 from pypfopt import risk_models
 from pypfopt import expected_returns
 from pypfopt import objective_functions
 from pypfopt.discrete_allocation import DiscreteAllocation, get_latest_prices
-import datetime
+from datetime import date, datetime
+import json
+from urllib.request import urlopen
+import pandas as pd
+from config import FMP_KEY
+
+
 
 # Uses prior 3 years of data
-def get_historical_data(tickers):
+def get_historical_data(tickers, start='2018-01-03', end=date.today()):
     """
     tickers = ["MSFT", "AMZN", "KO", "MA", "COST", 
            "LUV", "XOM", "PFE", "JPM", "UNH", 
            "ACN", "DIS", "GILD", "F", "TSLA"] 
-           """
-    today = '{date:%Y-%m-%d}'.format(date=datetime.datetime.now())
-    start = '{year}{date:-%m-%d}'.format(year=datetime.datetime.now().year-3, date=datetime.datetime.now())
-    ohlc = yf.download(tickers, start=start, end=today)
-    prices = ohlc["Adj Close"].dropna(how="all")
-    return prices
-
+    Parameters:
+    to : YYYY-MM-DD
+    from : YYYY-MM-DD
+    timeseries : Number (return last x days)
+    serietype : line | bar
+    """
+    if (len(tickers) == 1):
+        response = urlopen(
+            f"https://financialmodelingprep.com/api/v3/historical-price-full/{str(tickers[0])}?from={start}&to={end}&apikey={FMP_KEY}")
+        data = response.read().decode("utf-8")
+        jsonRes = json.loads(data)
+        df = pd.json_normalize(jsonRes, 'historical')
+        df.set_index('date', inplace=True)
+        prices = df[::-1]
+        return prices["adjClose"].dropna()
+    else:
+        _DFS = {}
+        for ticker in tickers:
+            response = urlopen(
+                f"https://financialmodelingprep.com/api/v3/historical-price-full/{str(ticker)}?from={start}&to={end}&apikey={FMP_KEY}")
+            data = response.read().decode("utf-8")
+            jsonRes = json.loads(data)
+            _DFS[ticker] = pd.json_normalize(jsonRes, 'historical')
+        df = pd.concat(_DFS.values(), axis=1,
+                       keys=_DFS.keys())
+        df.columns = df.columns.swaplevel(0, 1)
+        df.sort_index(level=0, axis=1, inplace=True)
+        df.set_index(('date', tickers[0]), inplace=True)
+        df.index.rename('Date', inplace=True)
+        prices = df[::-1]
+        return prices["adjClose"].dropna()
+    
 
 def discreet_allocation(df, weights, investment):
     latest_prices = get_latest_prices(df)
@@ -43,8 +73,8 @@ def sharpe_ratio(df, investment):
     # Get discreet_allocation
     allocation = discreet_allocation(df, cleaned_weights, investment)
     data = {
-        "start_date": '{year}{date:-%m-%d}'.format(year=datetime.datetime.now().year-3, date=datetime.datetime.now()),
-        "end_date": '{date:%Y-%m-%d}'.format(date=datetime.datetime.now()),
+        "start_date": '{year}{date:-%m-%d}'.format(year=datetime.now().year-4, date=datetime.now()),
+        "end_date": '{date:%Y-%m-%d}'.format(date=datetime.now()),
         "weights": dict(cleaned_weights),
         "expected_annual_return": details[0] * 100,
         "annual_volitility": details[1] * 100,
@@ -65,8 +95,8 @@ def optimized_for_volatility(df, investment, max_volatility):
     # Get discreet_allocation
     allocation = discreet_allocation(df, cleaned_weights, investment)
     data = {
-        "start_date": '{year}{date:-%m-%d}'.format(year=datetime.datetime.now().year-3, date=datetime.datetime.now()),
-        "end_date": '{date:%Y-%m-%d}'.format(date=datetime.datetime.now()),
+        "start_date": '{year}{date:-%m-%d}'.format(year=datetime.now().year-4, date=datetime.now()),
+        "end_date": '{date:%Y-%m-%d}'.format(date=datetime.now()),
         "weights": dict(cleaned_weights),
         "expected_annual_return": details[0] * 100,
         "annual_volitility": details[1] * 100,
@@ -87,8 +117,8 @@ def min_volatility(df, investment):
     # Get discreet_allocation
     allocation = discreet_allocation(df, cleaned_weights, investment)
     data = {
-        "start_date": '{year}{date:-%m-%d}'.format(year=datetime.datetime.now().year-3, date=datetime.datetime.now()),
-        "end_date": '{date:%Y-%m-%d}'.format(date=datetime.datetime.now()),
+        "start_date": '{year}{date:-%m-%d}'.format(year=datetime.now().year-4, date=datetime.now()),
+        "end_date": '{date:%Y-%m-%d}'.format(date=datetime.now()),
         "weights": dict(cleaned_weights),
         "expected_annual_return": details[0] * 100,
         "annual_volitility": details[1] * 100,
@@ -108,8 +138,8 @@ def optimized_for_return(df, investment, target_return):
      # Get discreet_allocation
     allocation = discreet_allocation(df, cleaned_weights, investment)
     data = {
-        "start_date": '{year}{date:-%m-%d}'.format(year=datetime.datetime.now().year-3, date=datetime.datetime.now()),
-        "end_date": '{date:%Y-%m-%d}'.format(date=datetime.datetime.now()),
+        "start_date": '{year}{date:-%m-%d}'.format(year=datetime.now().year-4, date=datetime.now()),
+        "end_date": '{date:%Y-%m-%d}'.format(date=datetime.now()),
         "weights": dict(cleaned_weights),
         "expected_annual_return": details[0] * 100,
         "annual_volitility": details[1] * 100,
