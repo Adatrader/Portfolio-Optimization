@@ -1,12 +1,12 @@
 from flask import Flask, render_template, jsonify, request
 from flask_selfdoc import Autodoc
 from flask_httpauth import HTTPBasicAuth
-from helpers import get_historical_data, optimized_for_return, sharpe_ratio, optimized_for_volatility, min_volatility, optimized_for_return
+from helpers import customETF, get_historical_data, optimized_for_return, sharpe_ratio, optimized_for_volatility, min_volatility, optimized_for_return
 from werkzeug.security import check_password_hash
 from config import users
 
 app = Flask(__name__)
-app.config["DEBUG"] = True  # TODO: Set to False during deployment
+app.config["DEBUG"] = False  # TODO: Set to False during deployment
 prefix = "/api/v1"
 auto = Autodoc(app)
 auth = HTTPBasicAuth()
@@ -83,6 +83,20 @@ def efficient_risk():
     else:
         return "Not post request", 400
 
+@auto.doc()
+@app.route(f'{prefix}/custom_etf_max_sharpe', methods=['POST'])
+@auth.login_required
+# POST for sharpe ratio
+def custom_etf_max_sharpe():
+    if(request.method == 'POST'):
+        investment_amount = int(request.args.get('investment', 10000))
+        tickers = customETF()
+        # Generate historical data
+        df = get_historical_data(tickers)
+        # Calculate sharpe ratio and portfolio balance
+        data = sharpe_ratio(df, investment_amount)
+        return jsonify(data)
+    return "Not post request", 400
 
 @app.route(f'{prefix}/keep_alive', methods=['GET'])
 # Keep alive for heroku 30 min sleep
@@ -98,5 +112,5 @@ def documentation():
 
 
 # TODO: Comment out for heroku deployment
-if __name__ == "__main__":
-    app.run()
+# if __name__ == "__main__":
+#     app.run()

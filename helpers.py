@@ -10,6 +10,23 @@ import pandas as pd
 from config import FMP_KEY
 
 
+def customETF():
+    qqqResponse = urlopen(
+        f'https://financialmodelingprep.com/api/v3/etf-holder/QQQ?apikey={FMP_KEY}')
+    spyResponse = urlopen(
+        f'https://financialmodelingprep.com/api/v3/etf-holder/SPY?apikey={FMP_KEY}')
+    qqqData = qqqResponse.read().decode("utf-8")
+    spyData = spyResponse.read().decode("utf-8")
+    qqqJsonRes = json.loads(qqqData)
+    spyJsonRes = json.loads(spyData)
+    customEtfSet = set()
+    if qqqJsonRes and spyJsonRes:
+        # Get rank 25-55 top allocations in SPY & QQQ = ~60 stocks
+        for i in range(25, 55):
+            customEtfSet.add(qqqJsonRes[i]["asset"])
+        for i in range(25, 55):
+            customEtfSet.add(spyJsonRes[i]["asset"])
+    return list(customEtfSet)
 
 # Uses prior 3 years of data
 def get_historical_data(tickers, start='2018-01-03', end=date.today()):
@@ -31,7 +48,7 @@ def get_historical_data(tickers, start='2018-01-03', end=date.today()):
         df = pd.json_normalize(jsonRes, 'historical')
         df.set_index('date', inplace=True)
         prices = df[::-1]
-        return prices["adjClose"].dropna()
+        return prices["adjClose"].dropna(how='all')
     else:
         _DFS = {}
         for ticker in tickers:
@@ -47,7 +64,7 @@ def get_historical_data(tickers, start='2018-01-03', end=date.today()):
         df.set_index(('date', tickers[0]), inplace=True)
         df.index.rename('Date', inplace=True)
         prices = df[::-1]
-        return prices["adjClose"].dropna()
+        return prices["adjClose"].dropna(how='all')
     
 
 def discreet_allocation(df, weights, investment):
